@@ -1,0 +1,6 @@
+{
+  "name": "初中英语词汇全教材版本V2-Remix: 全教材1",
+  "description": "实现从 Google Sheets 中读取六本教材词汇数据",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
