@@ -280,12 +280,12 @@ export default function App() {
     <>
       {/* Mobile Overlay */}
       <AnimatePresence>
-        {!sidebarOpen && (
+        {sidebarOpen && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarOpen(false)}
             className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 lg:hidden"
           />
         )}
@@ -294,8 +294,8 @@ export default function App() {
       <motion.aside
         initial={false}
         animate={{ 
-          width: sidebarOpen ? 280 : 0,
-          x: sidebarOpen ? 0 : -280
+          width: sidebarOpen ? 224 : 0,
+          x: sidebarOpen ? 0 : -224
         }}
         className="fixed lg:relative h-screen bg-white border-r border-slate-100 z-50 overflow-hidden flex flex-col"
       >
