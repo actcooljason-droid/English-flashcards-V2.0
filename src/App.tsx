@@ -165,13 +165,66 @@ export default function App() {
     loadVocabulary(selectedGrade.id);
   }, []);
 
-  // Helper: Generate random options
-  const generateOptions = (correctMeaning: string) => {
-    const distractors = vocabulary
-      .filter(v => v.meaning !== correctMeaning)
-      .map(v => v.meaning)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 3);
+  // Helper: Generate intelligent options
+  const generateOptions = (correctItem: VocabularyItem) => {
+    const correctMeaning = correctItem.meaning;
+    
+    // 1. 特征识别 (Phrase, Symbols, Length)
+    const isPhrase = correctMeaning.includes(' ') || 
+                     correctMeaning.includes('...') || 
+                     correctMeaning.includes('，') || 
+                     correctMeaning.includes(',') ||
+                     correctMeaning.length > 8;
+    
+    const hasSpecialSymbols = /[（）()《》、]/.test(correctMeaning);
+    
+    // 2. 候选池筛选 (排除本身，并排除在干扰项含义中包含原词的情况，防止透题)
+    const cleanCorrectWord = correctItem.word.split(' /')[0].trim().toLowerCase();
+    const candidates = vocabulary.filter(v => {
+      if (v.meaning === correctMeaning) return false;
+      const lowerMeaning = v.meaning.toLowerCase();
+      // 如果干扰项的中文注释中包含了正在测试的英文单词（或其变形），则排除
+      return !lowerMeaning.includes(cleanCorrectWord);
+    });
+
+    // 3. 智能评分逻辑
+    const scoredCandidates = candidates.map(item => {
+      let score = 0;
+      const m = item.meaning;
+
+      // 规则 1: 基于同一本教材即可，适当保留同单元微倾向 (The "Book Context" Rule)
+      if (item.unit === correctItem.unit) {
+        score += 60; // 降低权重，不再严格限制在单元内
+      }
+
+      // 规则 2: 格式对齐 (The "Format Matching" Rule)
+      const itemIsPhrase = m.includes(' ') || m.includes('...') || m.includes('，') || m.includes(',') || m.length > 8;
+      const itemHasSymbols = /[（）()《》、]/.test(m);
+
+      if (itemIsPhrase === isPhrase) score += 100;
+      if (itemHasSymbols === hasSpecialSymbols) score += 80;
+
+      // 长度接近度 (消除视觉排他性)
+      const lengthDiff = Math.abs(m.length - correctMeaning.length);
+      score += Math.max(0, 50 - lengthDiff * 5);
+
+      // 词性/结构暗示 (简单启发式：检查后缀或开头)
+      if (m.slice(-1) === correctMeaning.slice(-1)) score += 20;
+
+      // 随机扰动 (确保每次测试不完全重复)
+      score += Math.random() * 30;
+
+      return { meaning: m, score };
+    });
+
+    // 4. 动态分层取样 (Fallback Logic)
+    // 根据评分排序
+    const distractors = scoredCandidates
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(c => c.meaning);
+
+    // 极端情况兜底 (如果当前库实在太小，不足以满足需求时，由 vocabulary 保证了基础数量)
     
     return [correctMeaning, ...distractors].sort(() => 0.5 - Math.random());
   };
@@ -179,7 +232,7 @@ export default function App() {
   // Actions
   const startModule = (moduleName: string, reviewItems?: VocabularyItem[]) => {
     const moduleItems = reviewItems || vocabulary.filter(v => v.unit === moduleName);
-    const options = moduleItems.map(item => generateOptions(item.meaning));
+    const options = moduleItems.map(item => generateOptions(item));
     
     setIsReviewMode(!!reviewItems);
     setSelectedAnswer(null);
